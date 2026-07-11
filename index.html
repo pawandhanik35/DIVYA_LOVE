@@ -625,30 +625,47 @@
       btn.classList.toggle('playing', isPlaying);
     }
 
-    function tryPlay(){
+    function tryPlayUnmuted(){
+      audio.muted = false;
       const p = audio.play();
       if(p !== undefined){
         p.then(()=> setPlayingState(true)).catch(()=> setPlayingState(false));
       }
     }
 
-    // Attempt autoplay on load (often blocked by the browser)
-    tryPlay();
+    // Trick: most browsers allow MUTED autoplay even with zero interaction.
+    // Start muted, then flip to unmuted right after — this lets sound play
+    // automatically on many browsers (mainly Android/Chrome) without any tap.
+    audio.muted = true;
+    const autoplayAttempt = audio.play();
+    if(autoplayAttempt !== undefined){
+      autoplayAttempt.then(() => {
+        setTimeout(() => {
+          audio.muted = false;
+          setPlayingState(!audio.paused);
+        }, 150);
+      }).catch(() => {
+        setPlayingState(false);
+      });
+    }
 
-    // Fallback: start on first user interaction if autoplay was blocked
+    // Fallback for browsers (mainly iOS Safari) that still block sound
+    // entirely until a real tap happens anywhere on the page.
     const resumeOnInteract = () => {
-      if(audio.paused){ tryPlay(); }
+      if(audio.paused || audio.muted){ tryPlayUnmuted(); }
+      document.removeEventListener('touchstart', resumeOnInteract);
       document.removeEventListener('click', resumeOnInteract);
       document.removeEventListener('scroll', resumeOnInteract);
       document.removeEventListener('keydown', resumeOnInteract);
     };
+    document.addEventListener('touchstart', resumeOnInteract, { once:true, passive:true });
     document.addEventListener('click', resumeOnInteract, { once:true });
     document.addEventListener('scroll', resumeOnInteract, { once:true });
     document.addEventListener('keydown', resumeOnInteract, { once:true });
 
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      if(audio.paused){ tryPlay(); } else { audio.pause(); setPlayingState(false); }
+      if(audio.paused || audio.muted){ tryPlayUnmuted(); } else { audio.pause(); setPlayingState(false); }
     });
   })();
 
