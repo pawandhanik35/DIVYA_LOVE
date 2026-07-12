@@ -972,7 +972,10 @@
     const hint = document.getElementById('musicHint');
     function setPlayingState(isPlaying){
       btn.classList.toggle('playing', isPlaying);
-      if(isPlaying && hint){ hint.classList.add('hidden'); }
+      // NOTE: hint is intentionally NOT hidden here — the silent muted-autoplay
+      // attempt below also calls this, and on several phones that "succeeds"
+      // without sound actually being audible. Hint only hides on a real tap
+      // (see resumeOnInteract and the button's own click handler).
     }
 
     function tryPlayUnmuted(){
